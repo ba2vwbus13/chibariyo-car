@@ -1,0 +1,138 @@
+<?xml version="1.0"?>
+<!-- Gazebo Fortress (gz-sim 6) 対応版 -->
+<sdf version="1.7">
+  <world name="follow_test">
+
+    <!-- 必須システムプラグイン -->
+    <plugin filename="ignition-gazebo-physics-system"
+            name="ignition::gazebo::systems::Physics"/>
+    <plugin filename="ignition-gazebo-user-commands-system"
+            name="ignition::gazebo::systems::UserCommands"/>
+    <plugin filename="ignition-gazebo-scene-broadcaster-system"
+            name="ignition::gazebo::systems::SceneBroadcaster"/>
+    <plugin filename="ignition-gazebo-sensors-system"
+            name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ===== 部屋の壁 (12m x 12m) ===== -->
+    <model name="walls">
+      <static>true</static>
+      <link name="link">
+        <collision name="north"><pose>0 6 1 0 0 0</pose>
+          <geometry><box><size>12 0.2 2</size></box></geometry></collision>
+        <visual name="north_v"><pose>0 6 1 0 0 0</pose>
+          <geometry><box><size>12 0.2 2</size></box></geometry>
+          <material><ambient>0.5 0.5 0.5 1</ambient><diffuse>0.5 0.5 0.5 1</diffuse></material></visual>
+        <collision name="south"><pose>0 -6 1 0 0 0</pose>
+          <geometry><box><size>12 0.2 2</size></box></geometry></collision>
+        <visual name="south_v"><pose>0 -6 1 0 0 0</pose>
+          <geometry><box><size>12 0.2 2</size></box></geometry>
+          <material><ambient>0.5 0.5 0.5 1</ambient><diffuse>0.5 0.5 0.5 1</diffuse></material></visual>
+        <collision name="east"><pose>6 0 1 0 0 0</pose>
+          <geometry><box><size>0.2 12 2</size></box></geometry></collision>
+        <visual name="east_v"><pose>6 0 1 0 0 0</pose>
+          <geometry><box><size>0.2 12 2</size></box></geometry>
+          <material><ambient>0.5 0.5 0.5 1</ambient><diffuse>0.5 0.5 0.5 1</diffuse></material></visual>
+        <collision name="west"><pose>-6 0 1 0 0 0</pose>
+          <geometry><box><size>0.2 12 2</size></box></geometry></collision>
+        <visual name="west_v"><pose>-6 0 1 0 0 0</pose>
+          <geometry><box><size>0.2 12 2</size></box></geometry>
+          <material><ambient>0.5 0.5 0.5 1</ambient><diffuse>0.5 0.5 0.5 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ===== 障害物(Nav2の回避デモ用) ===== -->
+    <model name="obstacle_1">
+      <static>true</static>
+      <pose>1.2 -1.2 0.4 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><box><size>0.8 0.8 0.8</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.8 0.8 0.8</size></box></geometry>
+          <material><ambient>0.6 0.45 0.3 1</ambient><diffuse>0.6 0.45 0.3 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="obstacle_2">
+      <static>true</static>
+      <pose>0.0 1.6 0.4 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><box><size>0.8 0.8 0.8</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.8 0.8 0.8</size></box></geometry>
+          <material><ambient>0.6 0.45 0.3 1</ambient><diffuse>0.6 0.45 0.3 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ===== 人モデル(円柱・重力無効) =====
+         VelocityControl: /model/person/cmd_vel (速度指令で移動)
+         OdometryPublisher: /model/person/odometry (現在位置)
+         person_moverノードが閉ループでウェイポイント巡回させる -->
+    <model name="person">
+      <pose>2 0 0.8 0 0 0</pose>
+      <link name="body">
+        <gravity>false</gravity>
+        <!-- 慣性を大きくして、接触しても転倒・回転しないようにする -->
+        <inertial>
+          <mass>80</mass>
+          <inertia><ixx>1000</ixx><iyy>1000</iyy><izz>1000</izz>
+                   <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+        </inertial>
+        <collision name="body_col">
+          <geometry><cylinder><radius>0.15</radius><length>1.6</length></cylinder></geometry>
+        </collision>
+        <!-- 人型メッシュ(初回起動時にFuelから自動ダウンロード。YOLOで人として検出可能) -->
+        <visual name="body_vis">
+          <pose>0 0 -0.8 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing person/tip/files/meshes/standing.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+      <plugin filename="ignition-gazebo-velocity-control-system"
+              name="ignition::gazebo::systems::VelocityControl"/>
+      <plugin filename="ignition-gazebo-odometry-publisher-system"
+              name="ignition::gazebo::systems::OdometryPublisher">
+        <odom_publish_frequency>20</odom_publish_frequency>
+      </plugin>
+    </model>
+
+    <physics type="ode">
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+  </world>
+</sdf>

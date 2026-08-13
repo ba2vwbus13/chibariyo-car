@@ -1,0 +1,232 @@
+<?xml version="1.0"?>
+<!-- Gazebo Fortress (gz-sim 6) 対応版 -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="wheelchair">
+
+  <!-- ===== パラメータ ===== -->
+  <xacro:property name="body_x" value="0.55"/>   <!-- 前後長 -->
+  <xacro:property name="body_y" value="0.50"/>   <!-- 幅 -->
+  <xacro:property name="body_z" value="0.35"/>   <!-- 高さ -->
+  <xacro:property name="body_mass" value="40.0"/>
+  <xacro:property name="wheel_radius" value="0.17"/>
+  <xacro:property name="wheel_width" value="0.05"/>
+  <xacro:property name="wheel_mass" value="3.0"/>
+  <xacro:property name="wheel_sep" value="0.60"/>
+  <xacro:property name="caster_radius" value="0.06"/>
+
+  <!-- ===== 慣性マクロ ===== -->
+  <xacro:macro name="box_inertia" params="m x y z">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${m*(y*y+z*z)/12}" iyy="${m*(x*x+z*z)/12}" izz="${m*(x*x+y*y)/12}"
+               ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </xacro:macro>
+  <xacro:macro name="cylinder_inertia" params="m r h">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${m*(3*r*r+h*h)/12}" iyy="${m*(3*r*r+h*h)/12}" izz="${m*r*r/2}"
+               ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </xacro:macro>
+  <xacro:macro name="sphere_inertia" params="m r">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${2*m*r*r/5}" iyy="${2*m*r*r/5}" izz="${2*m*r*r/5}"
+               ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- ===== 本体 ===== -->
+  <link name="base_footprint"/>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${wheel_radius}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 ${body_z/2}" rpy="0 0 0"/>
+      <geometry><box size="${body_x} ${body_y} ${body_z}"/></geometry>
+      <material name="blue"><color rgba="0.2 0.3 0.8 1"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${body_z/2}" rpy="0 0 0"/>
+      <geometry><box size="${body_x} ${body_y} ${body_z}"/></geometry>
+    </collision>
+    <xacro:box_inertia m="${body_mass}" x="${body_x}" y="${body_y}" z="${body_z}"/>
+  </link>
+
+  <!-- 背もたれ(見た目のみ) -->
+  <joint name="backrest_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="backrest_link"/>
+    <origin xyz="${-body_x/2+0.03} 0 ${body_z+0.25}" rpy="0 0 0"/>
+  </joint>
+  <link name="backrest_link">
+    <visual>
+      <geometry><box size="0.06 ${body_y*0.9} 0.5"/></geometry>
+      <material name="darkblue"><color rgba="0.15 0.2 0.6 1"/></material>
+    </visual>
+    <xacro:box_inertia m="1.0" x="0.06" y="${body_y*0.9}" z="0.5"/>
+  </link>
+
+  <!-- ===== 駆動輪(左右) ===== -->
+  <xacro:macro name="drive_wheel" params="prefix y_pos">
+    <joint name="${prefix}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${prefix}_wheel_link"/>
+      <origin xyz="-0.1 ${y_pos} 0" rpy="${-pi/2} 0 0"/>
+      <axis xyz="0 0 1"/>
+    </joint>
+    <link name="${prefix}_wheel_link">
+      <visual>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        <material name="black"><color rgba="0.1 0.1 0.1 1"/></material>
+      </visual>
+      <collision>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+      </collision>
+      <xacro:cylinder_inertia m="${wheel_mass}" r="${wheel_radius}" h="${wheel_width}"/>
+    </link>
+    <gazebo reference="${prefix}_wheel_link">
+      <mu1>1.0</mu1>
+      <mu2>1.0</mu2>
+    </gazebo>
+  </xacro:macro>
+  <xacro:drive_wheel prefix="left"  y_pos="${wheel_sep/2}"/>
+  <xacro:drive_wheel prefix="right" y_pos="${-wheel_sep/2}"/>
+
+  <!-- ===== 前キャスタ(左右) ===== -->
+  <xacro:macro name="caster" params="prefix y_pos">
+    <joint name="${prefix}_caster_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="${prefix}_caster_link"/>
+      <origin xyz="0.2 ${y_pos} ${-wheel_radius+caster_radius}" rpy="0 0 0"/>
+    </joint>
+    <link name="${prefix}_caster_link">
+      <visual>
+        <geometry><sphere radius="${caster_radius}"/></geometry>
+        <material name="grey"><color rgba="0.4 0.4 0.4 1"/></material>
+      </visual>
+      <collision>
+        <geometry><sphere radius="${caster_radius}"/></geometry>
+      </collision>
+      <xacro:sphere_inertia m="0.5" r="${caster_radius}"/>
+    </link>
+    <gazebo reference="${prefix}_caster_link">
+      <mu1>0.0</mu1>
+      <mu2>0.0</mu2>
+    </gazebo>
+  </xacro:macro>
+  <xacro:caster prefix="front_left"  y_pos="0.18"/>
+  <xacro:caster prefix="front_right" y_pos="-0.18"/>
+
+  <!-- ===== 2D LiDAR ===== -->
+  <joint name="lidar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="${body_x/2-0.05} 0 ${body_z+0.05}" rpy="0 0 0"/>
+  </joint>
+  <link name="lidar_link">
+    <visual>
+      <geometry><cylinder radius="0.04" length="0.05"/></geometry>
+      <material name="red"><color rgba="0.9 0.1 0.1 1"/></material>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="0.04" length="0.05"/></geometry>
+    </collision>
+    <xacro:cylinder_inertia m="0.2" r="0.04" h="0.05"/>
+  </link>
+
+  <gazebo reference="lidar_link">
+    <sensor name="lidar_sensor" type="gpu_lidar">
+      <topic>scan</topic>
+      <update_rate>10</update_rate>
+      <ignition_frame_id>lidar_link</ignition_frame_id>
+      <lidar>
+        <scan>
+          <horizontal>
+            <samples>360</samples>
+            <resolution>1</resolution>
+            <min_angle>${-pi}</min_angle>
+            <max_angle>${pi}</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.20</min>
+          <max>10.0</max>
+          <resolution>0.01</resolution>
+        </range>
+      </lidar>
+      <always_on>true</always_on>
+      <visualize>true</visualize>
+    </sensor>
+  </gazebo>
+
+  <!-- ===== RGB-Dカメラ ===== -->
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="${body_x/2-0.02} 0 ${body_z+0.15}" rpy="0 0 0"/>
+  </joint>
+  <link name="camera_link">
+    <visual>
+      <geometry><box size="0.03 0.09 0.03"/></geometry>
+      <material name="green"><color rgba="0.1 0.7 0.2 1"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="0.03 0.09 0.03"/></geometry>
+    </collision>
+    <xacro:box_inertia m="0.1" x="0.03" y="0.09" z="0.03"/>
+  </link>
+
+  <!-- 光学フレーム(REP103: z前方→カメラ光学系の座標に変換) -->
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_link_optical"/>
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+  <link name="camera_link_optical"/>
+
+  <gazebo reference="camera_link">
+    <sensor name="camera" type="rgbd_camera">
+      <topic>camera</topic>
+      <update_rate>10</update_rate>
+      <ignition_frame_id>camera_link_optical</ignition_frame_id>
+      <camera>
+        <horizontal_fov>1.36</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>10.0</far>
+        </clip>
+      </camera>
+      <always_on>true</always_on>
+    </sensor>
+  </gazebo>
+
+  <!-- ===== 差動駆動プラグイン (gz-sim) ===== -->
+  <gazebo>
+    <plugin filename="ignition-gazebo-diff-drive-system"
+            name="ignition::gazebo::systems::DiffDrive">
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+      <wheel_separation>${wheel_sep}</wheel_separation>
+      <wheel_radius>${wheel_radius}</wheel_radius>
+      <topic>cmd_vel</topic>
+      <odom_topic>odom</odom_topic>
+      <tf_topic>tf</tf_topic>
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_footprint</child_frame_id>
+      <odom_publish_frequency>30</odom_publish_frequency>
+      <max_linear_acceleration>1.5</max_linear_acceleration>
+      <max_angular_acceleration>3.0</max_angular_acceleration>
+    </plugin>
+  </gazebo>
+
+</robot>

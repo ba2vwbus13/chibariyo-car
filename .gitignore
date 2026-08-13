@@ -1,0 +1,26 @@
+# ROS 2 のビルド生成物（colcon build でいつでも再生成できる）
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# 録画した動画（容量が大きい）
+ros2_ws/videos/
+
+# 初回起動時に自動ダウンロードされるモデル
+ros2_ws/*.pt
+*.onnx
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# エディタ・OS
+.DS_Store
+.claude/
+.vscode/
+.idea/
+
+# GitHub公開用のセットアップスクリプト（個人のパス・メールを含むため公開しない）
+github_setup.command

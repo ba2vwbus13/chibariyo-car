@@ -1,0 +1,14 @@
+services:
+  ros2:
+    build:
+      context: ./docker
+    image: wheelchair-follow:humble
+    container_name: wheelchair_follow
+    ports:
+      - "6080:80"       # ブラウザで http://localhost:6080 を開く
+    volumes:
+      - ./ros2_ws:/home/ubuntu/ros2_ws
+    shm_size: "1gb"
+    security_opt:
+      - seccomp:unconfined
+    restart: unless-stopped
