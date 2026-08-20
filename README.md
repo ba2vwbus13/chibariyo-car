@@ -1,16 +1,24 @@
 # チバリヨカー — 人追従電動車椅子シミュレーション (ROS 2 Humble + Gazebo Fortress)
 
-最終更新: 2026-08-12（フォルダ整理にあわせて加筆）
+最終更新: 2026-08-20（arm64対応のDocker修正・屋内施設ワールド追加・Re-ID実験パック追加）
 
 人を検出し、追従して走行する電動車椅子のシミュレーションです。
 追従方式は **2D LiDAR** / **カメラ色検出** / **カメラYOLO人検出** の3種類を切り替えられます。
 Mac上のDocker + ブラウザ(noVNC)で動作します。
 
-このフォルダをClaude Coworkで開き「`README.md` を読んで開発を引き継いでください」と
-伝えれば、いつでも再開できます。
+このフォルダをClaude Coworkで開き「`HANDOVER.md` と `README.md` を読んで開発を引き継いでください」と
+伝えれば、いつでも再開できます。**`HANDOVER.md` に現在の状態・未解決の課題・次にやることをまとめて
+あります**(セッションをまたぐときは必ずそちらを先に読んでください)。
 
 > Gazebo Classicはarm64(Apple Silicon)向けパッケージが提供されていないため、
 > arm64ネイティブで動く新Gazebo(Fortress)+ ros_gz 構成にしています。
+
+> **2026-08-20 追記(開発機の移行)**: 開発機を別のMac(M4)から現在のiMacへ移したところ、
+> `ros-humble-ros-gz` の apt バイナリが arm64 には無いことが分かり、`docker compose build` が
+> `E: Unable to locate package ros-humble-ros-gz` で失敗するようになりました。
+> 現在の `docker/Dockerfile` は「aptにあれば apt / 無ければ ros_gz(humbleブランチ)をソースビルド」
+> という分岐に変更してあります。ソースビルドは10〜20分かかり、**Docker Desktop に 8GB 以上の
+> メモリ割り当てが必要**です(不足すると `cc1plus` がOOMで殺されます)。
 
 ## できること（デモ4種の早見表）
 
@@ -21,6 +29,32 @@ Mac上のDocker + ブラウザ(noVNC)で動作します。
 | `demo.launch.py method:=yolo` | カメラYOLO | YOLOv8で人検出＋深度で距離。**実機に最も近い** | `... demo.launch.py method:=yolo` |
 | `nav_demo.launch.py` | LiDAR + Nav2 | 障害物を回避しながら追従。経路計画つき | `... nav_demo.launch.py` |
 | `dance_demo.launch.py` | — | 人の動きを1.2秒遅れで真似る「踊り物真似」デモ | `... dance_demo.launch.py` |
+
+## ワールド(3種類・`world:=` で切り替え)
+
+| ワールド | 内容 | 起動例 |
+|---|---|---|
+| `follow_test.world`(既定) | 12m×12mの部屋 + 障害物2個。アルゴリズムの素の挙動を見るのに向く | `ros2 launch wheelchair_gazebo demo.launch.py` |
+| `facility.world` | 18m×12mの屋内施設。幅3mの中央廊下 + 4部屋(食堂・談話室・居室・リハビリ室) + 扉4か所(幅1.6m) + 家具20点あまり | `ros2 launch wheelchair_gazebo demo.launch.py world:=facility.world` |
+| `crowd_test.world` | follow_test + 通行人 person2。Re-ID評価用(下の「Re-ID評価」の節を参照) | `ros2 launch wheelchair_gazebo crowd_demo.launch.py` |
+
+`sim.launch.py` / `demo.launch.py` / `nav_demo.launch.py` のすべてが `world:=` に対応しています。
+
+人の巡回ルートは `wheelchair_gazebo/config/person_waypoints_<ワールド名>.yaml` に分離してあり、
+launchがワールド名から自動で読み込みます(対応するYAMLが無ければノードの既定値)。
+`--symlink-install` でビルドしていれば、**YAMLを編集するだけで再ビルドなしに**ルートを変えられます。
+
+車椅子のスポーン位置も引数で変えられます(人ノードの `robot_world_offset` も自動で追従します)。
+
+```bash
+ros2 launch wheelchair_gazebo demo.launch.py world:=facility.world spawn_x:=-6.0 spawn_y:=0.0
+```
+
+`facility.world` の間取り(x: -9〜9m, y: -6〜6m):
+
+- 中央廊下 `y = -1.5 〜 1.5`(幅3m)が東西に貫通
+- 北側の扉: `x = -4.5`(食堂) と `x = 4.5`(談話室) / 南側の扉: `x = -5.5`(居室) と `x = 3.0`(リハビリ室)
+- 人の巡回ルートは全区間で最小クリアランス0.41m(人の半径0.15m)を確保
 
 ## 構成
 
@@ -102,6 +136,13 @@ ros2 launch wheelchair_gazebo dance_demo.launch.py           # 踊り物真似(�
 ```
 
 Gazeboが開き、8秒後に人型モデルが歩き出し、車椅子が追従を始めます。
+
+屋内施設ワールドで動かす場合は `world:=facility.world` を足します(詳細は「ワールド」の節)。
+
+```bash
+ros2 launch wheelchair_gazebo demo.launch.py world:=facility.world
+ros2 launch wheelchair_gazebo nav_demo.launch.py world:=facility.world
+```
 
 個別に起動する場合:
 
@@ -245,6 +286,9 @@ COCO学習済みYOLOは円柱を人として認識しないため、Gazebo内の
 | `colcon build --symlink-install` で `option --editable not recognized` | `pip3 install "setuptools==58.2.0"` して build/ install/ を削除後に再ビルド |
 | pipが「torch requires setuptools>=77」と警告 | 実害なし(torchの実行にはsetuptools不要)。無視してよい |
 | 検出されない | `rqt_image_view` で `/camera/image_raw` に人が写っているか確認。写っていなければカメラの向き・人の位置の問題 |
+| `docker compose build` が `E: Unable to locate package ros-humble-ros-gz` | arm64のaptには ros_gz のバイナリが無い。現在のDockerfileは自動でソースビルドに切り替わる(要10〜20分) |
+| ビルド中に `c++: fatal error: Killed signal terminated program cc1plus` | メモリ不足。Docker Desktop → Settings → Resources → Memory を8GB以上に。Dockerfile側は `MAKEFLAGS=-j1` と `--executor sequential` で1並列に制限済み |
+| `ros_gz_bridge` が見つからない | ソースビルド版は `/opt/ros_gz_ws/install` に入る。`ros2 pkg prefix ros_gz_bridge` で確認(bashrcで自動sourceしている) |
 
 ## 動画の録画
 
@@ -276,6 +320,58 @@ ign topic -l                     # Gazebo側のトピック一覧
 ign topic -e -t /model/person/odometry   # 人の位置確認(Gazebo側)
 ```
 
+## 既知の問題: 人と車椅子のデッドロック(最優先課題)
+
+`facility.world` で、人が部屋の奥まで入って引き返してくると、**人と車椅子が向かい合って両方とも永久に停止**します。
+
+原因は「近づいたら止まる」ルールが両側にあることです。
+
+| ノード | 該当パラメータ | 挙動 |
+|---|---|---|
+| `person_mover.py` | `robot_stop_radius` = 0.7 | 車椅子が0.7m以内にいると `Twist()` を送って停止 |
+| `follower_node.py` | `stop_distance` = 0.8 | `cmd.linear.x = max(0.0, ...)` のため**後退できない**。0.8m以内では停止するだけ |
+
+互いに相手が動くのを待つため、いったん噛み合うと復帰しません。
+
+**Nav2版(`nav_demo.launch.py`)でも解決しません。** `nav_follower_node.py` が送るゴールは
+「人の**手前** standoff m」なので、人が車椅子の方へ向かってくる状況ではゴールが車椅子の現在地付近になり、
+車椅子は動かなくてよいという解になります。Nav2の障害物回避は「相手が静止している前提で自分が迂回する」
+機能であって「道を譲る」機能ではなく、行き止まりの部屋や幅1.6mの扉では迂回路そのものが存在しません。
+
+## 次にやること: 「譲る(yield)」ロジックの実装
+
+実機でも必ず起きる問題なので、追従アルゴリズム側に明示的な譲り動作を入れます。優先順に3段構え。
+
+### 1. 車椅子に退避動作を入れる(本命・`follower_node.py`)
+
+- **状態機械を追加**: `FOLLOW`(通常追従) / `YIELD`(道を譲る) / `WAIT`(脇で待機)
+- **YIELDへの遷移条件**: 人との距離が `yield_distance`(0.9m程度)以下 **かつ** 人が接近中
+  (距離の時間微分が負、`d(dist)/dt < -0.05 m/s` を数サイクル連続で観測)
+- **YIELD中の動作**: `cmd.linear.x` の下限0を外して後退を許可(`max_reverse` = 0.3 m/s 程度)。
+  同時に `/scan` の左右の空き具合を比較し、空いている側へ寄る(角速度を与えながら後退)
+- **復帰条件**: 人が離れていく(距離の微分が正)状態が1秒続いたら `FOLLOW` に戻る
+- **安全策**: 後退中は背後の `/scan` 最短距離を監視し、0.4m以下なら停止(LiDARは360°なので背後も見える)
+- 同じ処理を `camera_follower_node.py` / `yolo_follower_node.py` / `yolo_reid_follower_node.py` にも展開する
+  (カメラ方式は背後が見えないので、後退の可否判断は `/scan` を併用する)
+
+### 2. 人側も避けて歩く(`person_mover.py`)
+
+- 現状の「止まる」を「よける」に変更。`robot_stop_radius` 以内に車椅子が入ったら、
+  目標方向ベクトルに車椅子からの反発ベクトル(距離の逆数で重み付け)を足して進む
+- 一定時間(3秒程度)動けなかったら次のウェイポイントへスキップし、膠着を強制的に解く
+
+### 3. ワールド側で正面衝突の機会を減らす(`facility.world`)
+
+- 各部屋に扉を2つ設けて一方通行のループ動線にする(行き止まりを作らない)
+- 発表用の映像では有効だが本質的な解決ではないので、1. と併用する
+
+### 検証の仕方
+
+1. `world:=facility.world` で `demo.launch.py` を起動し、談話室(東側の部屋)に人が入って戻る場面を `./record.sh 90` で録画
+2. Before(現状のデッドロック)と After(譲り動作あり)を並べると、発表資料にそのまま使える
+3. 定量評価は `metrics_logger_node.py` の指標に「デッドロック発生回数」「1周にかかる時間」を足すと、
+   Re-ID実験パックと同じ枠組みで数値比較できる
+
 ## 補足
 
 - 人モデルの衝突形状を円柱にしているのは、Gazeboのアニメーション人型(actor)がLiDARに映らない(衝突形状を持たない)ためです。実機の脚検出(2本脚クラスタ)に近づけたい場合は、円柱を2本の細い円柱に分けると脚ペア検出アルゴリズムの開発に使えます
@@ -283,7 +379,56 @@ ign topic -e -t /model/person/odometry   # 人の位置確認(Gazebo側)
 - YOLO方式はCPU推論のため数Hz程度の検出周期になります(推論中のフレームはスキップ)。速度不足を感じたら `imgsz` を小さくするか、LiDAR方式を使ってください
 - 初回起動時は人型メッシュ(Fuelから約26MB)とYOLOモデル(約6MB)の自動ダウンロードがあるため、ネット接続が必要です
 - Dockerfile変更後は `docker compose build --no-cache && docker compose up -d`、コード変更後はコンテナ内で `colcon build` の再実行が必要です
-- 次のステップ候補: 特定人物の追尾(見た目の特徴やIDによるRe-ID)、SLAM(slam_toolbox)導入によるmap座標系でのNav2運用、実機LiDAR(URG/RPLiDAR)・実機カメラへの置き換え
+- 次にやることは「譲る(yield)ロジックの実装」の節を参照。その先の候補: SLAM(slam_toolbox)導入によるmap座標系でのNav2運用、実機LiDAR(URG/RPLiDAR)・実機カメラへの置き換え
+
+
+## Re-ID評価(人混みシナリオ)実験パック — 2026-08-20追加
+
+SCORE!応募書類の「今後の課題」に対応する、**通行人がいる環境でのRe-ID追尾と定量評価**の
+実験セットです(別セッションのClaudeが追加。既存コードは setup.py のエントリポイント追加以外
+変更していません)。
+
+### 追加されたもの
+
+| ファイル | 役割 |
+|---|---|
+| `worlds/crowd_test.world` | follow_test + 通行人 person2(胸に赤い帯=服色ちがい) |
+| `launch/crowd_demo.launch.py` | 人混みデモ一括起動 + 計測(method:=reid/yolo/lidar) |
+| `wheelchair_follower/yolo_reid_follower_node.py` | YOLO+色ヒストグラムRe-ID追従(状態を/follower/statusに配信) |
+| `wheelchair_follower/metrics_logger_node.py` | 真値ベースの定量計測(ID維持率・見失い率・再発見時間・距離誤差) |
+
+### 実行手順
+
+```bash
+cd ~/ros2_ws
+colcon build --symlink-install   # エントリポイント追加のため再ビルド必須
+source install/setup.bash
+ros2 launch wheelchair_gazebo crowd_demo.launch.py                # Re-ID方式
+# 60〜120秒走らせて Ctrl+C → ~/ros2_ws/metrics/summary_reid_*.txt に結果
+
+ros2 launch wheelchair_gazebo crowd_demo.launch.py method:=yolo   # 比較: 最近傍YOLO
+ros2 launch wheelchair_gazebo crowd_demo.launch.py method:=lidar  # 比較: LiDAR
+```
+
+### 測れる指標(summary_*.txt)
+
+- **ID維持率**: 追従中に正しく本人を追っていた時間割合
+- **ID取り違え回数**: 通行人に乗り移った回数(最近傍方式はここが弱いはず)
+- **見失い率 / 平均再発見時間**: 横切られた後の復帰性能
+- **距離維持誤差**: 本人追従中の |実距離−目標1.2m| の平均±標準偏差
+
+比較のポイント: `method:=yolo`(最も近い人を追う)は通行人が横切ると乗り移りやすく、
+`method:=reid` は服の色と位置の連続性で本人に留まる——という差が数値で出れば、
+書類・発表の「センサフュージョンの効果」の根拠になります。
+
+### 注意
+
+- `/follower/status` を配信するのはreid方式のみ。yolo/lidar方式の比較測定では
+  ID判定ができないため、CSVの距離データと見た目(動画)での比較になります。
+  厳密に比較したい場合は各followerに同様のstatus配信を足してください。
+- 通行人と本人は物理的に接触することがあります(両方とも高慣性の円柱なので実害は軽微)。
+- 色Re-IDは簡易実装(HSVヒストグラム)です。実機では照明変化に弱いため、
+  発表では「シミュレーションでの原理検証」と位置づけるのが正直で安全です。
 
 ## GitHubへのアップロード
 
@@ -292,7 +437,7 @@ ign topic -e -t /model/person/odometry   # 人の位置確認(Gazebo側)
 ### 次回以降、変更をアップロードする手順
 
 ```bash
-cd "/Users/nakahira/Documents/latest/研究/20270716チバリヨカー"
+cd "/Users/nakahira/Library/CloudStorage/GoogleDrive-ba2vwbus13wind@gmail.com/My Drive/研究/20260716チバリヨカー"
 git status              # 何が変わったか、何が上がるかを必ず先に確認
 git add -A
 git commit -m "変更内容のメモ"

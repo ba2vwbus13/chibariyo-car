@@ -26,6 +26,8 @@ setup(
             'person_dancer = wheelchair_follower.person_dancer_node:main',
             'dance_mimic = wheelchair_follower.dance_mimic_node:main',
             'person_mover = wheelchair_follower.person_mover:main',
+            'yolo_reid_follower = wheelchair_follower.yolo_reid_follower_node:main',
+            'metrics_logger = wheelchair_follower.metrics_logger_node:main',
         ],
     },
 )

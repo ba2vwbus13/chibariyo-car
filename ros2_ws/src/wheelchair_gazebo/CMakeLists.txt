@@ -3,7 +3,7 @@ project(wheelchair_gazebo)
 
 find_package(ament_cmake REQUIRED)
 
-install(DIRECTORY worlds launch
+install(DIRECTORY worlds launch config
   DESTINATION share/${PROJECT_NAME}
 )
 

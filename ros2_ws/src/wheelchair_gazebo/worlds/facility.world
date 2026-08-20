@@ -1,0 +1,384 @@
+<?xml version="1.0"?>
+<!-- Gazebo Fortress (gz-sim 6) 対応
+     屋内施設ワールド: 中央廊下 + 4部屋(食堂・談話室・居室・リハビリ室) + 家具
+     広さ 18m x 12m / 廊下幅 3m / 出入口幅 1.6m
+     人モデル(person)とプラグイン構成は follow_test.world と同一なので
+     person_mover / 追従ノード / ブリッジはそのまま使えます。 -->
+<sdf version="1.7">
+  <world name="facility">
+
+    <!-- 必須システムプラグイン -->
+    <plugin filename="ignition-gazebo-physics-system"
+            name="ignition::gazebo::systems::Physics"/>
+    <plugin filename="ignition-gazebo-user-commands-system"
+            name="ignition::gazebo::systems::UserCommands"/>
+    <plugin filename="ignition-gazebo-scene-broadcaster-system"
+            name="ignition::gazebo::systems::SceneBroadcaster"/>
+    <plugin filename="ignition-gazebo-sensors-system"
+            name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.85 0.85 0.85 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+    <!-- 室内の陰を明るくする補助光 -->
+    <light type="point" name="indoor_light">
+      <pose>0 0 3.5 0 0 0</pose>
+      <diffuse>0.4 0.4 0.4 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation><range>25</range><linear>0.05</linear><constant>0.4</constant></attenuation>
+      <cast_shadows>false</cast_shadows>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry>
+          <material>
+            <ambient>0.82 0.80 0.76 1</ambient>
+            <diffuse>0.82 0.80 0.76 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ===================================================================
+         外壁 (18m x 12m): x = -9..9, y = -6..6
+         =================================================================== -->
+    <model name="outer_walls">
+      <static>true</static>
+      <link name="link">
+        <collision name="north"><pose>0 6 1 0 0 0</pose>
+          <geometry><box><size>18 0.2 2</size></box></geometry></collision>
+        <visual name="north_v"><pose>0 6 1 0 0 0</pose>
+          <geometry><box><size>18 0.2 2</size></box></geometry>
+          <material><ambient>0.55 0.55 0.58 1</ambient><diffuse>0.55 0.55 0.58 1</diffuse></material></visual>
+
+        <collision name="south"><pose>0 -6 1 0 0 0</pose>
+          <geometry><box><size>18 0.2 2</size></box></geometry></collision>
+        <visual name="south_v"><pose>0 -6 1 0 0 0</pose>
+          <geometry><box><size>18 0.2 2</size></box></geometry>
+          <material><ambient>0.55 0.55 0.58 1</ambient><diffuse>0.55 0.55 0.58 1</diffuse></material></visual>
+
+        <collision name="east"><pose>9 0 1 0 0 0</pose>
+          <geometry><box><size>0.2 12 2</size></box></geometry></collision>
+        <visual name="east_v"><pose>9 0 1 0 0 0</pose>
+          <geometry><box><size>0.2 12 2</size></box></geometry>
+          <material><ambient>0.55 0.55 0.58 1</ambient><diffuse>0.55 0.55 0.58 1</diffuse></material></visual>
+
+        <collision name="west"><pose>-9 0 1 0 0 0</pose>
+          <geometry><box><size>0.2 12 2</size></box></geometry></collision>
+        <visual name="west_v"><pose>-9 0 1 0 0 0</pose>
+          <geometry><box><size>0.2 12 2</size></box></geometry>
+          <material><ambient>0.55 0.55 0.58 1</ambient><diffuse>0.55 0.55 0.58 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ===================================================================
+         間仕切り壁
+         北側 y=1.5 : 出入口 x=-4.5 と x=4.5 (幅1.6m)
+         南側 y=-1.5: 出入口 x=-5.5 と x=3.0 (幅1.6m)
+         → 中央の廊下(y=-1.5..1.5, 幅3m)が東西に貫通
+         =================================================================== -->
+    <model name="partitions">
+      <static>true</static>
+      <link name="link">
+        <!-- 北側の仕切り(3分割) -->
+        <collision name="n1"><pose>-7.15 1.5 1 0 0 0</pose>
+          <geometry><box><size>3.7 0.15 2</size></box></geometry></collision>
+        <visual name="n1_v"><pose>-7.15 1.5 1 0 0 0</pose>
+          <geometry><box><size>3.7 0.15 2</size></box></geometry>
+          <material><ambient>0.75 0.72 0.65 1</ambient><diffuse>0.75 0.72 0.65 1</diffuse></material></visual>
+
+        <collision name="n2"><pose>0 1.5 1 0 0 0</pose>
+          <geometry><box><size>7.4 0.15 2</size></box></geometry></collision>
+        <visual name="n2_v"><pose>0 1.5 1 0 0 0</pose>
+          <geometry><box><size>7.4 0.15 2</size></box></geometry>
+          <material><ambient>0.75 0.72 0.65 1</ambient><diffuse>0.75 0.72 0.65 1</diffuse></material></visual>
+
+        <collision name="n3"><pose>7.15 1.5 1 0 0 0</pose>
+          <geometry><box><size>3.7 0.15 2</size></box></geometry></collision>
+        <visual name="n3_v"><pose>7.15 1.5 1 0 0 0</pose>
+          <geometry><box><size>3.7 0.15 2</size></box></geometry>
+          <material><ambient>0.75 0.72 0.65 1</ambient><diffuse>0.75 0.72 0.65 1</diffuse></material></visual>
+
+        <!-- 南側の仕切り(3分割) -->
+        <collision name="s1"><pose>-7.65 -1.5 1 0 0 0</pose>
+          <geometry><box><size>2.7 0.15 2</size></box></geometry></collision>
+        <visual name="s1_v"><pose>-7.65 -1.5 1 0 0 0</pose>
+          <geometry><box><size>2.7 0.15 2</size></box></geometry>
+          <material><ambient>0.75 0.72 0.65 1</ambient><diffuse>0.75 0.72 0.65 1</diffuse></material></visual>
+
+        <collision name="s2"><pose>-1.25 -1.5 1 0 0 0</pose>
+          <geometry><box><size>6.9 0.15 2</size></box></geometry></collision>
+        <visual name="s2_v"><pose>-1.25 -1.5 1 0 0 0</pose>
+          <geometry><box><size>6.9 0.15 2</size></box></geometry>
+          <material><ambient>0.75 0.72 0.65 1</ambient><diffuse>0.75 0.72 0.65 1</diffuse></material></visual>
+
+        <collision name="s3"><pose>6.4 -1.5 1 0 0 0</pose>
+          <geometry><box><size>5.2 0.15 2</size></box></geometry></collision>
+        <visual name="s3_v"><pose>6.4 -1.5 1 0 0 0</pose>
+          <geometry><box><size>5.2 0.15 2</size></box></geometry>
+          <material><ambient>0.75 0.72 0.65 1</ambient><diffuse>0.75 0.72 0.65 1</diffuse></material></visual>
+
+        <!-- 北側の部屋を東西に分ける壁 (x=0, y=1.5..6) -->
+        <collision name="nmid"><pose>0 3.75 1 0 0 0</pose>
+          <geometry><box><size>0.15 4.5 2</size></box></geometry></collision>
+        <visual name="nmid_v"><pose>0 3.75 1 0 0 0</pose>
+          <geometry><box><size>0.15 4.5 2</size></box></geometry>
+          <material><ambient>0.75 0.72 0.65 1</ambient><diffuse>0.75 0.72 0.65 1</diffuse></material></visual>
+
+        <!-- 南側の部屋を東西に分ける壁 (x=-2, y=-6..-1.5) -->
+        <collision name="smid"><pose>-2 -3.75 1 0 0 0</pose>
+          <geometry><box><size>0.15 4.5 2</size></box></geometry></collision>
+        <visual name="smid_v"><pose>-2 -3.75 1 0 0 0</pose>
+          <geometry><box><size>0.15 4.5 2</size></box></geometry>
+          <material><ambient>0.75 0.72 0.65 1</ambient><diffuse>0.75 0.72 0.65 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ===================================================================
+         食堂 (北西: x=-9..0, y=1.5..6) — テーブルと椅子
+         =================================================================== -->
+    <model name="dining_furniture">
+      <static>true</static>
+      <link name="link">
+        <!-- テーブル4台 (1.6 x 0.8 x 0.72) -->
+        <collision name="t1"><pose>-7.0 4.6 0.36 0 0 0</pose>
+          <geometry><box><size>1.6 0.8 0.72</size></box></geometry></collision>
+        <visual name="t1_v"><pose>-7.0 4.6 0.36 0 0 0</pose>
+          <geometry><box><size>1.6 0.8 0.72</size></box></geometry>
+          <material><ambient>0.62 0.45 0.30 1</ambient><diffuse>0.62 0.45 0.30 1</diffuse></material></visual>
+
+        <collision name="t2"><pose>-3.0 4.6 0.36 0 0 0</pose>
+          <geometry><box><size>1.6 0.8 0.72</size></box></geometry></collision>
+        <visual name="t2_v"><pose>-3.0 4.6 0.36 0 0 0</pose>
+          <geometry><box><size>1.6 0.8 0.72</size></box></geometry>
+          <material><ambient>0.62 0.45 0.30 1</ambient><diffuse>0.62 0.45 0.30 1</diffuse></material></visual>
+
+        <collision name="t3"><pose>-7.2 2.5 0.36 0 0 0</pose>
+          <geometry><box><size>1.6 0.8 0.72</size></box></geometry></collision>
+        <visual name="t3_v"><pose>-7.2 2.5 0.36 0 0 0</pose>
+          <geometry><box><size>1.6 0.8 0.72</size></box></geometry>
+          <material><ambient>0.62 0.45 0.30 1</ambient><diffuse>0.62 0.45 0.30 1</diffuse></material></visual>
+
+        <collision name="t4"><pose>-1.6 2.6 0.36 0 0 0</pose>
+          <geometry><box><size>1.6 0.8 0.72</size></box></geometry></collision>
+        <visual name="t4_v"><pose>-1.6 2.6 0.36 0 0 0</pose>
+          <geometry><box><size>1.6 0.8 0.72</size></box></geometry>
+          <material><ambient>0.62 0.45 0.30 1</ambient><diffuse>0.62 0.45 0.30 1</diffuse></material></visual>
+
+        <!-- 椅子(円柱 r=0.22 h=0.45) -->
+        <collision name="c1"><pose>-7.0 5.4 0.22 0 0 0</pose>
+          <geometry><cylinder><radius>0.22</radius><length>0.45</length></cylinder></geometry></collision>
+        <visual name="c1_v"><pose>-7.0 5.4 0.22 0 0 0</pose>
+          <geometry><cylinder><radius>0.22</radius><length>0.45</length></cylinder></geometry>
+          <material><ambient>0.35 0.35 0.40 1</ambient><diffuse>0.35 0.35 0.40 1</diffuse></material></visual>
+
+        <collision name="c2"><pose>-3.0 3.7 0.22 0 0 0</pose>
+          <geometry><cylinder><radius>0.22</radius><length>0.45</length></cylinder></geometry></collision>
+        <visual name="c2_v"><pose>-3.0 3.7 0.22 0 0 0</pose>
+          <geometry><cylinder><radius>0.22</radius><length>0.45</length></cylinder></geometry>
+          <material><ambient>0.35 0.35 0.40 1</ambient><diffuse>0.35 0.35 0.40 1</diffuse></material></visual>
+
+        <collision name="c3"><pose>-6.2 2.5 0.22 0 0 0</pose>
+          <geometry><cylinder><radius>0.22</radius><length>0.45</length></cylinder></geometry></collision>
+        <visual name="c3_v"><pose>-6.2 2.5 0.22 0 0 0</pose>
+          <geometry><cylinder><radius>0.22</radius><length>0.45</length></cylinder></geometry>
+          <material><ambient>0.35 0.35 0.40 1</ambient><diffuse>0.35 0.35 0.40 1</diffuse></material></visual>
+
+        <collision name="c4"><pose>-2.4 5.3 0.22 0 0 0</pose>
+          <geometry><cylinder><radius>0.22</radius><length>0.45</length></cylinder></geometry></collision>
+        <visual name="c4_v"><pose>-2.4 5.3 0.22 0 0 0</pose>
+          <geometry><cylinder><radius>0.22</radius><length>0.45</length></cylinder></geometry>
+          <material><ambient>0.35 0.35 0.40 1</ambient><diffuse>0.35 0.35 0.40 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ===================================================================
+         談話室 (北東: x=0..9, y=1.5..6) — ソファ・ローテーブル・観葉植物
+         =================================================================== -->
+    <model name="lounge_furniture">
+      <static>true</static>
+      <link name="link">
+        <collision name="sofa"><pose>6.5 5.2 0.3 0 0 0</pose>
+          <geometry><box><size>2.2 0.8 0.6</size></box></geometry></collision>
+        <visual name="sofa_v"><pose>6.5 5.2 0.3 0 0 0</pose>
+          <geometry><box><size>2.2 0.8 0.6</size></box></geometry>
+          <material><ambient>0.30 0.45 0.55 1</ambient><diffuse>0.30 0.45 0.55 1</diffuse></material></visual>
+
+        <collision name="lowtable"><pose>6.5 4.15 0.2 0 0 0</pose>
+          <geometry><box><size>1.2 0.7 0.4</size></box></geometry></collision>
+        <visual name="lowtable_v"><pose>6.5 4.15 0.2 0 0 0</pose>
+          <geometry><box><size>1.2 0.7 0.4</size></box></geometry>
+          <material><ambient>0.62 0.45 0.30 1</ambient><diffuse>0.62 0.45 0.30 1</diffuse></material></visual>
+
+        <collision name="plant1"><pose>1.2 5.2 0.6 0 0 0</pose>
+          <geometry><cylinder><radius>0.3</radius><length>1.2</length></cylinder></geometry></collision>
+        <visual name="plant1_v"><pose>1.2 5.2 0.6 0 0 0</pose>
+          <geometry><cylinder><radius>0.3</radius><length>1.2</length></cylinder></geometry>
+          <material><ambient>0.20 0.45 0.22 1</ambient><diffuse>0.20 0.45 0.22 1</diffuse></material></visual>
+
+        <collision name="plant2"><pose>8.0 2.4 0.6 0 0 0</pose>
+          <geometry><cylinder><radius>0.3</radius><length>1.2</length></cylinder></geometry></collision>
+        <visual name="plant2_v"><pose>8.0 2.4 0.6 0 0 0</pose>
+          <geometry><cylinder><radius>0.3</radius><length>1.2</length></cylinder></geometry>
+          <material><ambient>0.20 0.45 0.22 1</ambient><diffuse>0.20 0.45 0.22 1</diffuse></material></visual>
+
+        <collision name="shelf"><pose>2.0 2.3 0.5 0 0 0</pose>
+          <geometry><box><size>1.6 0.4 1.0</size></box></geometry></collision>
+        <visual name="shelf_v"><pose>2.0 2.3 0.5 0 0 0</pose>
+          <geometry><box><size>1.6 0.4 1.0</size></box></geometry>
+          <material><ambient>0.55 0.40 0.28 1</ambient><diffuse>0.55 0.40 0.28 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ===================================================================
+         居室 (南西: x=-9..-2, y=-6..-1.5) — ベッド・棚・サイドテーブル
+         =================================================================== -->
+    <model name="bedroom_furniture">
+      <static>true</static>
+      <link name="link">
+        <collision name="bed"><pose>-7.4 -4.6 0.25 0 0 0</pose>
+          <geometry><box><size>2.0 1.0 0.5</size></box></geometry></collision>
+        <visual name="bed_v"><pose>-7.4 -4.6 0.25 0 0 0</pose>
+          <geometry><box><size>2.0 1.0 0.5</size></box></geometry>
+          <material><ambient>0.85 0.85 0.88 1</ambient><diffuse>0.85 0.85 0.88 1</diffuse></material></visual>
+
+        <collision name="closet"><pose>-2.7 -4.2 0.8 0 0 0</pose>
+          <geometry><box><size>0.5 1.8 1.6</size></box></geometry></collision>
+        <visual name="closet_v"><pose>-2.7 -4.2 0.8 0 0 0</pose>
+          <geometry><box><size>0.5 1.8 1.6</size></box></geometry>
+          <material><ambient>0.55 0.40 0.28 1</ambient><diffuse>0.55 0.40 0.28 1</diffuse></material></visual>
+
+        <collision name="sidetable"><pose>-7.4 -2.9 0.28 0 0 0</pose>
+          <geometry><cylinder><radius>0.35</radius><length>0.56</length></cylinder></geometry></collision>
+        <visual name="sidetable_v"><pose>-7.4 -2.9 0.28 0 0 0</pose>
+          <geometry><cylinder><radius>0.35</radius><length>0.56</length></cylinder></geometry>
+          <material><ambient>0.62 0.45 0.30 1</ambient><diffuse>0.62 0.45 0.30 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ===================================================================
+         リハビリ室 (南東: x=-2..9, y=-6..-1.5) — 平行棒・マット・バランスボール
+         =================================================================== -->
+    <model name="rehab_furniture">
+      <static>true</static>
+      <link name="link">
+        <collision name="bar1"><pose>6.2 -3.2 0.45 0 0 0</pose>
+          <geometry><box><size>3.0 0.12 0.9</size></box></geometry></collision>
+        <visual name="bar1_v"><pose>6.2 -3.2 0.45 0 0 0</pose>
+          <geometry><box><size>3.0 0.12 0.9</size></box></geometry>
+          <material><ambient>0.80 0.78 0.30 1</ambient><diffuse>0.80 0.78 0.30 1</diffuse></material></visual>
+
+        <collision name="bar2"><pose>6.2 -4.6 0.45 0 0 0</pose>
+          <geometry><box><size>3.0 0.12 0.9</size></box></geometry></collision>
+        <visual name="bar2_v"><pose>6.2 -4.6 0.45 0 0 0</pose>
+          <geometry><box><size>3.0 0.12 0.9</size></box></geometry>
+          <material><ambient>0.80 0.78 0.30 1</ambient><diffuse>0.80 0.78 0.30 1</diffuse></material></visual>
+
+        <!-- マット(視覚のみ・段差なし) -->
+        <visual name="mat_v"><pose>0.8 -4.6 0.02 0 0 0</pose>
+          <geometry><box><size>2.4 2.0 0.04</size></box></geometry>
+          <material><ambient>0.25 0.35 0.60 1</ambient><diffuse>0.25 0.35 0.60 1</diffuse></material></visual>
+
+        <collision name="ball"><pose>-0.8 -3.0 0.35 0 0 0</pose>
+          <geometry><sphere><radius>0.35</radius></sphere></geometry></collision>
+        <visual name="ball_v"><pose>-0.8 -3.0 0.35 0 0 0</pose>
+          <geometry><sphere><radius>0.35</radius></sphere></geometry>
+          <material><ambient>0.75 0.35 0.35 1</ambient><diffuse>0.75 0.35 0.35 1</diffuse></material></visual>
+
+        <collision name="rack"><pose>0.2 -5.4 0.55 0 0 0</pose>
+          <geometry><box><size>1.2 0.5 1.1</size></box></geometry></collision>
+        <visual name="rack_v"><pose>0.2 -5.4 0.55 0 0 0</pose>
+          <geometry><box><size>1.2 0.5 1.1</size></box></geometry>
+          <material><ambient>0.45 0.45 0.48 1</ambient><diffuse>0.45 0.45 0.48 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ===================================================================
+         廊下の障害物(通行はできる幅を残してある)
+         =================================================================== -->
+    <model name="corridor_objects">
+      <static>true</static>
+      <link name="link">
+        <!-- 配膳カート -->
+        <collision name="cart"><pose>0.5 1.0 0.45 0 0 0</pose>
+          <geometry><box><size>0.8 0.5 0.9</size></box></geometry></collision>
+        <visual name="cart_v"><pose>0.5 1.0 0.45 0 0 0</pose>
+          <geometry><box><size>0.8 0.5 0.9</size></box></geometry>
+          <material><ambient>0.70 0.70 0.72 1</ambient><diffuse>0.70 0.70 0.72 1</diffuse></material></visual>
+
+        <!-- ベンチ -->
+        <collision name="bench"><pose>-6.5 1.0 0.22 0 0 0</pose>
+          <geometry><box><size>1.6 0.45 0.45</size></box></geometry></collision>
+        <visual name="bench_v"><pose>-6.5 1.0 0.22 0 0 0</pose>
+          <geometry><box><size>1.6 0.45 0.45</size></box></geometry>
+          <material><ambient>0.62 0.45 0.30 1</ambient><diffuse>0.62 0.45 0.30 1</diffuse></material></visual>
+
+        <!-- 観葉植物 -->
+        <collision name="plant3"><pose>-3.0 -1.05 0.65 0 0 0</pose>
+          <geometry><cylinder><radius>0.3</radius><length>1.3</length></cylinder></geometry></collision>
+        <visual name="plant3_v"><pose>-3.0 -1.05 0.65 0 0 0</pose>
+          <geometry><cylinder><radius>0.3</radius><length>1.3</length></cylinder></geometry>
+          <material><ambient>0.20 0.45 0.22 1</ambient><diffuse>0.20 0.45 0.22 1</diffuse></material></visual>
+
+        <!-- 柱 -->
+        <collision name="pillar"><pose>7.6 -1.0 1.2 0 0 0</pose>
+          <geometry><box><size>0.4 0.4 2.4</size></box></geometry></collision>
+        <visual name="pillar_v"><pose>7.6 -1.0 1.2 0 0 0</pose>
+          <geometry><box><size>0.4 0.4 2.4</size></box></geometry>
+          <material><ambient>0.60 0.60 0.62 1</ambient><diffuse>0.60 0.60 0.62 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ===================================================================
+         人モデル(follow_test.world と同一構成)
+         VelocityControl: /model/person/cmd_vel
+         OdometryPublisher: /model/person/odometry
+         =================================================================== -->
+    <model name="person">
+      <pose>2 0 0.8 0 0 0</pose>
+      <link name="body">
+        <gravity>false</gravity>
+        <inertial>
+          <mass>80</mass>
+          <inertia><ixx>1000</ixx><iyy>1000</iyy><izz>1000</izz>
+                   <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+        </inertial>
+        <collision name="body_col">
+          <geometry><cylinder><radius>0.15</radius><length>1.6</length></cylinder></geometry>
+        </collision>
+        <visual name="body_vis">
+          <pose>0 0 -0.8 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing person/tip/files/meshes/standing.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+      <plugin filename="ignition-gazebo-velocity-control-system"
+              name="ignition::gazebo::systems::VelocityControl"/>
+      <plugin filename="ignition-gazebo-odometry-publisher-system"
+              name="ignition::gazebo::systems::OdometryPublisher">
+        <odom_publish_frequency>20</odom_publish_frequency>
+      </plugin>
+    </model>
+
+    <physics type="ode">
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+  </world>
+</sdf>

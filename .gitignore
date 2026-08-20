@@ -6,6 +6,12 @@ ros2_ws/log/
 # 録画した動画（容量が大きい）
 ros2_ws/videos/
 
+# 計測結果（metrics_logger_node の出力。実行のたびに増える）
+ros2_ws/metrics/
+
+# Dockerビルドのログ
+build.log
+
 # 初回起動時に自動ダウンロードされるモデル
 ros2_ws/*.pt
 *.onnx
